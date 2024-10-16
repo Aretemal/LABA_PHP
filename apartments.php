@@ -1,10 +1,15 @@
 <?php
 session_start();
 
-$dsn = 'mysql:host=localhost;dbname=php_laba;charset=utf8';
+$dsn = 'mysql:host=localhost;dbname=php_laba2;charset=utf8';
 $username = 'root';
 $password = '';
 
+$isLandlord = $_SESSION['role'] === 'landlord';
+$isClient = $_SESSION['role'] === 'client';
+$isAdmin = $_SESSION['role'] === 'admin';
+
+$userID = $_SESSION['user_id'];
 try {
     $pdo = new PDO($dsn, $username, $password);
 } catch (PDOException $e) {
@@ -57,10 +62,10 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['edit_save'])) {
         $_SESSION['error'] = "Площадь должна быть положительным числом.";
     } else {
         try {
-            $stmt = $pdo->prepare("CALL AddApartment(?, ?, ?, ?, ?, ?, ?)");
-            $stmt->execute([$name, $price, $description, $location, $rooms, $area, $available]);
-            // $stmt = $pdo->prepare("UPDATE apartments SET name = ?, price = ?, description = ?, location = ?, rooms = ?, area = ?, available = ? WHERE id = ?");
-            // $stmt->execute([$name, $price, $description, $location, $rooms, $area, $available, $id]);
+            // $stmt = $pdo->prepare("CALL AddApartment(?, ?, ?, ?, ?, ?, ?)");
+            // $stmt->execute([$name, $price, $description, $location, $rooms, $area, $available]);
+            $stmt = $pdo->prepare("UPDATE apartments SET name = ?, price = ?, description = ?, location = ?, rooms = ?, area = ?, available = ? WHERE id = ?");
+            $stmt->execute([$name, $price, $description, $location, $rooms, $area, $available, $id]);
             $_SESSION['success'] = "Квартира успешно обновлена.";
         } catch (PDOException $e) {
             $_SESSION['db_error'] = 'Ошибка при выполнении запроса: ' . $e->getMessage();
@@ -93,14 +98,62 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['create'])) {
         $_SESSION['db_error'] = "Площадь должна быть положительным числом.";
     } else {
         try {
-            $stmt = $pdo->prepare("INSERT INTO apartments (name, price, description, location, rooms, area, available) VALUES (?, ?, ?, ?, ?, ?, ?)");
-            $stmt->execute([$name, $price, $description, $location, $rooms, $area, $available]);
+            $stmt = $pdo->prepare("INSERT INTO apartments (name, price, description, location, rooms, area, available, landlordID) VALUES (?, ?, ?, ?, ?, ?, ?, ?)");
+            $stmt->execute([$name, $price, $description, $location, $rooms, $area, $available, $_SESSION["user_id"]]);
             $_SESSION['success'] = "Квартира успешно добавлена.";
         } catch (PDOException $e) {
             $_SESSION['db_error'] = 'Ошибка при выполнении запроса: ' . $e->getMessage();
         }
     }
 }
+
+if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['save'])) {
+    error_log("POST Data: " . print_r($_POST, true));
+    $apartmentID = $_POST['save'];
+    $userID = $_SESSION['user_id'];
+
+    if (empty($apartmentID)) {
+        $_SESSION['error'] = "ID квартиры не может быть пустым.";
+    } else {
+        try {
+            // Проверка существующей записи
+            $stmt = $pdo->prepare("SELECT COUNT(*) FROM favorites WHERE userID = ? AND apartmentID = ?");
+            $stmt->execute([$userID, $apartmentID]);
+            $exists = $stmt->fetchColumn();
+
+            if ($exists) {
+                $_SESSION['error'] = "Эта квартира уже в избранном.";
+            } else {
+                // Если записи нет, добавляем
+                $stmt = $pdo->prepare("INSERT INTO favorites (userID, apartmentID) VALUES (?, ?)");
+                $stmt->execute([$userID, $apartmentID]);
+                $_SESSION['success'] = "Квартира добавлена в избранное.";
+            }
+        } catch (PDOException $e) {
+            $_SESSION['db_error'] = 'Ошибка при выполнении запроса: ' . $e->getMessage();
+        }
+    }
+}
+
+if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['request'])) {
+    error_log("POST Data: " . print_r($_POST, true));
+    $apartmentID = (int)$_POST['request'];
+    $userID = $_SESSION['user_id'];
+    if (empty($apartmentID)) {
+        $_SESSION['error'] = "ID квартиры не может быть пустым.";
+        // Можно сделать редирект или другую обработку
+        header("Location: apartments.php");
+        exit();
+    }
+    try {
+        $stmt = $pdo->prepare("INSERT INTO applications (userID, apartmentID) VALUES (?, ?)");
+        $stmt->execute([+$userID, +$apartmentID]);
+        $_SESSION['success'] = "Заявка успешно отправлена.";
+    } catch (PDOException $e) {
+        $_SESSION['error'] = 'Ошибка при выполнении запроса: ' . $apartmentID . $e->getMessage();
+    }
+}
+
 if (isset($_GET['delete'])) {
     $id = $_GET['delete'];
     try {
@@ -114,11 +167,18 @@ if (isset($_GET['delete'])) {
     exit();
 }
 
-$query = "SELECT * FROM apartments";
+
 $params = [];
+$query = "SELECT * FROM apartments WHERE 1=1"; 
+
+if ($isLandlord) {
+    $landlordID = $_SESSION['user_id'];
+    $query .= " AND landlordID = ?";
+    $params[] = $landlordID;
+}
 
 if ($searchTerm) {
-    $query .= " WHERE name LIKE ? OR description LIKE ? OR location LIKE ?";
+    $query .= " AND (name LIKE ? OR description LIKE ? OR location LIKE ?)";
     $params[] = "%$searchTerm%";
     $params[] = "%$searchTerm%";
     $params[] = "%$searchTerm%";
@@ -127,6 +187,25 @@ if ($searchTerm) {
 $stmt = $pdo->prepare($query);
 $stmt->execute($params);
 $apartments = $stmt->fetchAll(PDO::FETCH_ASSOC);
+
+
+
+
+$favoriteIDs = [];
+$stmt = $pdo->prepare("SELECT apartmentID FROM favorites WHERE userID = ?");
+$stmt->execute([$userID]);
+while ($row = $stmt->fetch(PDO::FETCH_ASSOC)) {
+    $favoriteIDs[] = $row['apartmentID'];
+}
+
+
+
+$applicationIDs = [];
+$stmt = $pdo->prepare("SELECT apartmentID FROM applications WHERE userID = ?");
+$stmt->execute([$userID]);
+while ($row = $stmt->fetch(PDO::FETCH_ASSOC)) {
+    $applicationIDs[] = $row['apartmentID'];
+}
 
 // $query = "SELECT * FROM apartments";
 // $stmt = $pdo->query($query);
@@ -156,7 +235,7 @@ $apartments = $stmt->fetchAll(PDO::FETCH_ASSOC);
     </form>
 
     <h3>Список квартир</h3>
-    <table>
+    <table style="margin-bottom: 10px;">
         <tr>
             <th>ID</th>
             <th>Название</th>
@@ -177,21 +256,45 @@ $apartments = $stmt->fetchAll(PDO::FETCH_ASSOC);
                 <td><?= htmlspecialchars($apartment['rooms']) ?></td>
                 <td><?= htmlspecialchars($apartment['area']) ?></td>
                 <td><?= htmlspecialchars($apartment['available'] ? 'Да' : 'Нет') ?></td>
-                <td>
-                    <form method="post" style="display: inline;">
-                        <input type="hidden" name="id" value="<?= $apartment['id'] ?>">
-                        <button type="submit" name="edit" formaction="apartments.php?id=<?= $apartment['id'] ?>">Редактировать</button>
-                    </form>
-                    <form method="get" style="display: inline;">
-                        <input type="hidden" name="delete" value="<?= $apartment['id'] ?>">
-                        <button type="submit" onclick="return confirm('Вы уверены, что хотите удалить эту запись?');">Удалить</button>
-                    </form>
+                <td style="margin-bottom: 10px; margin-top: 10px; display: flex; flex-direction: column; align-items: space-between; justify-content: space-between; height: 100px;">
+                    <?php if ($isLandlord || $isAdmin): ?>
+                        <div>
+                            <form method="post" style="display: inline;">
+                                <input type="hidden" name="id" value="<?= $apartment['id'] ?>">
+                                <button type="submit" name="edit" formaction="apartments.php?id=<?= $apartment['id'] ?>">Редактировать</button>
+                            </form>
+                            <form method="get" style="display: inline;">
+                                <input type="hidden" name="delete" value="<?= $apartment['id'] ?>">
+                                <button type="submit" onclick="return confirm('Вы уверены, что хотите удалить эту запись?');">Удалить</button>
+                            </form>
+                        </div>
+                    <?php endif; ?>
+                    <?php if ($isClient || $isAdmin): ?>
+                        <div>
+                        <form method="post" style="display:inline;">
+                            <input type="hidden" name="save" value="<?= $apartment['id'] ?>">
+                            <?php if (!in_array($apartment['id'], $favoriteIDs)): ?>
+                                    <button type="submit">Добавить в избранное</button>
+                            <?php else: ?>
+                                <span>В избранном</span>
+                            <?php endif; ?>
+                        </form>
+                        <form method="post" style="display:inline;">
+                            <input type="hidden" name="request" value="<?= $apartment['id'] ?>">
+                            <?php if (!in_array($apartment['id'], $applicationIDs)): ?>
+                                <button type="submit">Оставить заявку</button>
+                            <?php else: ?>
+                                <span>Заявка отправлена</span>
+                            <?php endif; ?>
+                        </form>
+                        </div>
+                    <?php endif; ?>
                 </td>
             </tr>
         <?php endforeach; ?>
     </table>
 
-    <?php if (isset($_GET['id'])): ?>
+    <?php if (isset($_GET['id']) && ($isLandlord || $isAdmin)): ?>
         <?php
         $id = $_GET['id'];
         $stmt = $pdo->prepare("SELECT * FROM apartments WHERE id = ?");
@@ -228,6 +331,7 @@ $apartments = $stmt->fetchAll(PDO::FETCH_ASSOC);
         </div>
     <?php endif; ?>
 
+    <?php if ($isLandlord || $isAdmin): ?>
     <form method="post">
         <h3>Добавить квартиру</h3>
         <label for="name">Название:</label>
@@ -252,6 +356,7 @@ $apartments = $stmt->fetchAll(PDO::FETCH_ASSOC);
 
         <button type="submit" name="create">Добавить квартиру</button>
     </form>
+    <?php endif; ?>
 </main>
 
 <style>

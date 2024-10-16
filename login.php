@@ -1,7 +1,7 @@
 <?php
 session_start();
-require 'func/db.php'; 
-require 'func/login_user.php';
+require 'src/db/pdo.php';
+require 'src/users/users.php';
 
 $error = "";
 
@@ -11,7 +11,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['login'])) {
 
     try {
         $pdo = getPDO();
-        $user = authenticateUser($username, $password, $pdo);
+        $user = checkUser($username, $password, $pdo);
 
         if ($user) {
             $_SESSION['user_id'] = $user['id'];

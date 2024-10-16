@@ -12,9 +12,17 @@
     <h1>Моя Система Управления Квартирами</h1>
     <nav>
         <ul>
-            <li><a href="apartments.php">Квартиры</a></li>
-            <li><a href="users.php">Пользователи</a></li>
             <?php if (isset($_SESSION['user_id'])): ?>
+                <li><a href="apartments.php">Квартиры</a></li>
+                <?php if (isset($_SESSION['user_id']) && ($_SESSION['role'] === 'landlord' || $_SESSION['role'] === 'admin')): ?>
+                <li><a href="manage_applications.php">Заявки</a></li>
+                <?php endif; ?>
+                <?php if (isset($_SESSION['user_id']) && ($_SESSION['role'] === 'client' || $_SESSION['role'] === 'admin')): ?>
+                <li><a href="favorites.php">Избранное</a></li>
+                <?php endif; ?>
+                <?php if (isset($_SESSION['user_id']) && $_SESSION['role'] === 'admin'): ?>
+                <li><a href="users.php">Пользователи</a></li>
+                <?php endif; ?>
                 <li><span>Добро пожаловать<?php if (isset($_SESSION['username'])): ?>, <?= htmlspecialchars($_SESSION['username']) ?><?php endif; ?>!</span></li>
                 <li><a href="logout.php" class="logout">Выйти</a></li>
             <?php else: ?>

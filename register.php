@@ -1,9 +1,8 @@
 <?php
 session_start();
 require 'common/header.php';
-require 'func/db.php';
-require 'func/create_user.php';
-require 'func/user_validation.php'; 
+require 'src/db/pdo.php';
+require 'src/users/users.php';
 
 $error = "";
 
@@ -16,7 +15,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             $error = implode(' ', $errors);
             $_SESSION['error'] = $error;
             header("Location: register.php");
-        } elseif (userExists($pdo, $userData['username'])) {
+        } elseif (isUserExists($pdo, $userData['username'])) {
             $error = "Пользователь с таким логином уже существует.";
             header("Location: register.php");
         } else {
@@ -27,7 +26,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                 $userData['age'],
                 $userData['gender'], 
                 $userData['role']
-            );
+            );  
             
             $_SESSION['user_id'] = $userId;
             $_SESSION['username'] = $userData['username'];
@@ -82,7 +81,8 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 
         <label for="role">Роль:
             <select name="role" required>
-                <option value="user">Пользователь</option>
+                <option value="landlord">Арендодатель</option>
+                <option value="client">Клиент</option>
                 <option value="admin">Администратор</option>
             </select>
         </label>
