@@ -31,9 +31,16 @@ if (!isset($_SESSION['user_id'] )) {
 }
 
 $searchTerm = '';
+
 if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['search'])) {
     $searchTerm = $_POST['searchTerm'];
+
+    if (strlen($searchTerm) > 1000) {
+        $_SESSION['error'] = "Поисковый запрос не должен превышать 1000 символов.";
+        $searchTerm = '';
+    }
 }
+
 
 if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['edit_save'])) {
     $id = $_POST['id'];

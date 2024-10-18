@@ -120,7 +120,8 @@ $users = $stmt->fetchAll(PDO::FETCH_ASSOC);
 
         <label for="role">Роль: 
             <select name="role" required>
-                <option value="user">Пользователь</option>
+                <option value="landlord">Арендодатель</option>
+                <option value="client">Клиент</option>
                 <option value="admin">Администратор</option>
             </select>
         </label>
