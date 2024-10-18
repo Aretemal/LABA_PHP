@@ -17,6 +17,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             header("Location: register.php");
         } elseif (isUserExists($pdo, $userData['username'])) {
             $error = "Пользователь с таким логином уже существует.";
+            $_SESSION['error'] = $error;
             header("Location: register.php");
         } else {
             $userId = createUser(
