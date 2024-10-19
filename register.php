@@ -44,7 +44,6 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 ?>
 
 <main style="padding: 20px;">
-    <h2>Регистрация</h2>
     
     <?php if (isset($error)): ?>
         <p style="color:red;"><?= $error ?></p>
@@ -59,7 +58,8 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         <?php unset($error); ?>
     <?php endif; ?>
     
-    <form method="post">
+    <form method="post" style="border: 2px solid black;">
+        <h2 style="margin-bottom: 10px">Регистрация</h2>
         <label for="name">Имя:</label>
         <input type="text" name="name" required>
         

@@ -95,9 +95,9 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                         <td><?= htmlspecialchars($application['apartment_name']) ?></td>
                         <td><?= htmlspecialchars($application['user_name']) ?></td>
                         <td><?= htmlspecialchars($application['status']) ?></td>
-                        <td>
+                        <!-- <td>
                             <a href="chat.php?applicationID=<?php echo $application['id']; ?>" class="btn">Чат</a>
-                        </td>
+                        </td> -->
                         <?php if ($isLandlord || $isAdmin): ?>
                             <td>
                                 <form method="post" style="display:inline;">
