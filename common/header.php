@@ -20,6 +20,7 @@
                 <?php endif; ?>
                 <?php if (isset($_SESSION['user_id']) && $_SESSION['role'] === 'admin'): ?>
                 <li><a href="users.php">Пользователи</a></li>
+                <li><a href="admin_board.php">Панель администратора</a></li>
                 <?php endif; ?>
                 <li><span>Добро пожаловать<?php if (isset($_SESSION['username'])): ?>, <?= htmlspecialchars($_SESSION['username']) ?><?php endif; ?>!</span></li>
                 <li><a href="logout.php" class="logout">Выйти</a></li>

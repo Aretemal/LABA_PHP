@@ -1,7 +1,7 @@
 <?php
 session_start();
 
-$dsn = 'mysql:host=localhost;dbname=php_laba2;charset=utf8';
+$dsn = 'mysql:host=localhost;dbname=php_laba3;charset=utf8';
 $username = 'root';
 $password = '';
 

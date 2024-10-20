@@ -1,7 +1,7 @@
 <?php
 session_start();
 
-$dsn = 'mysql:host=localhost;dbname=php_laba2;charset=utf8';
+$dsn = 'mysql:host=localhost;dbname=php_laba3;charset=utf8';
 $username = 'root';
 $password = '';
 
@@ -30,7 +30,26 @@ if (!isset($_SESSION['user_id'] )) {
     exit();
 }
 
+
+
 $searchTerm = '';
+
+try {
+    $stmt = $pdo->query("SELECT is_active FROM smart_search LIMIT 1");
+    $smartSearch = $stmt->fetch(PDO::FETCH_ASSOC);
+
+    if (!$smartSearch) {
+        $pdo->exec("INSERT INTO smart_search (is_active) VALUES (0)");
+        $isActive = 0;
+    } else {
+        $isActive = $smartSearch['is_active'];
+    }
+} catch (PDOException $e) {
+    $_SESSION['db_error'] = 'Ошибка при получении состояния умного поиска: ' . htmlspecialchars($e->getMessage());
+    header("Location: logout.php");
+    exit();
+}
+
 
 if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['search'])) {
     $searchTerm = $_POST['searchTerm'];
@@ -174,49 +193,82 @@ if (isset($_GET['delete'])) {
     exit();
 }
 
-
-$params = [];
-$query = "SELECT * FROM apartments WHERE 1=1"; 
-
-if ($isLandlord) {
-    $landlordID = $_SESSION['user_id'];
-    $query .= " AND landlordID = ?";
-    $params[] = $landlordID;
-}
-
-if ($searchTerm) {
-    $query .= " AND (name LIKE ? OR description LIKE ? OR location LIKE ?)";
-    $params[] = "%$searchTerm%";
-    $params[] = "%$searchTerm%";
-    $params[] = "%$searchTerm%";
-}
-
-$stmt = $pdo->prepare($query);
-$stmt->execute($params);
-$apartments = $stmt->fetchAll(PDO::FETCH_ASSOC);
-
-
-
+$apartments = [];
 
 $favoriteIDs = [];
 $stmt = $pdo->prepare("SELECT apartmentID FROM favorites WHERE userID = ?");
 $stmt->execute([$userID]);
-while ($row = $stmt->fetch(PDO::FETCH_ASSOC)) {
-    $favoriteIDs[] = $row['apartmentID'];
-}
-
-
+$favoriteIDs = $stmt->fetchAll(PDO::FETCH_COLUMN, 0);
 
 $applicationIDs = [];
 $stmt = $pdo->prepare("SELECT apartmentID FROM applications WHERE userID = ?");
 $stmt->execute([$userID]);
-while ($row = $stmt->fetch(PDO::FETCH_ASSOC)) {
-    $applicationIDs[] = $row['apartmentID'];
+$applicationIDs = $stmt->fetchAll(PDO::FETCH_COLUMN, 0);
+
+if ($isActive && $isClient) {
+    $params = [];
+    $query = "SELECT a.*, 
+                     COUNT(f.apartmentID) AS favorite_count, 
+                     COUNT(app.apartmentID) AS application_count 
+              FROM apartments a
+              LEFT JOIN favorites f ON a.id = f.apartmentID AND f.userID = ?
+              LEFT JOIN applications app ON a.id = app.apartmentID AND app.userID = ?
+              WHERE 1=1"; 
+    
+    $params[] = $userID;
+    $params[] = $userID;
+    
+    if ($searchTerm) {
+        $query .= " AND (name LIKE ? OR description LIKE ? OR location LIKE ?)";
+        $params[] = "%$searchTerm%";
+        $params[] = "%$searchTerm%";
+        $params[] = "%$searchTerm%";
+    }
+    
+    if ($isActive && $isClient) {
+        $query .= " GROUP BY a.id 
+                    ORDER BY favorite_count DESC, application_count DESC, a.created_at DESC";
+    }
+    
+    
+    $stmt = $pdo->prepare($query);
+    $stmt->execute($params);
+    $apartments = $stmt->fetchAll(PDO::FETCH_ASSOC);
+} else {
+    $params = [];
+    $query = "SELECT * FROM apartments WHERE 1=1";
+
+    if ($isLandlord) {
+        $landlordID = $_SESSION['user_id'];
+        $query .= " AND landlordID = ?";
+        $params[] = $landlordID;
+    } 
+    
+    if ($searchTerm) {
+        $query .= " AND (name LIKE ? OR description LIKE ? OR location LIKE ?)";
+        $params[] = "%$searchTerm%";
+        $params[] = "%$searchTerm%";
+        $params[] = "%$searchTerm%";
+    }
+
+    $stmt = $pdo->prepare($query);
+    $stmt->execute($params);
+    $apartments = $stmt->fetchAll(PDO::FETCH_ASSOC);
 }
 
-// $query = "SELECT * FROM apartments";
-// $stmt = $pdo->query($query);
+// $stmt = $pdo->prepare($query);
+// $stmt->execute($params);
 // $apartments = $stmt->fetchAll(PDO::FETCH_ASSOC);
+
+$favoriteIDs = [];
+$stmt = $pdo->prepare("SELECT apartmentID FROM favorites WHERE userID = ?");
+$stmt->execute([$userID]);
+$favoriteIDs = $stmt->fetchAll(PDO::FETCH_COLUMN, 0);
+
+$applicationIDs = [];
+$stmt = $pdo->prepare("SELECT apartmentID FROM applications WHERE userID = ?");
+$stmt->execute([$userID]);
+$applicationIDs = $stmt->fetchAll(PDO::FETCH_COLUMN, 0);
 ?>
 
 <?php require 'common/header.php'; ?>
