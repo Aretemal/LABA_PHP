@@ -232,7 +232,7 @@ JOIN (
     }
     
     if ($isActive && $isClient) {
-        $query .= "GROUP BY a.landlordID) AS landlord_stats ON a.landlordID = landlord_stats.landlordID
+        $query .= " GROUP BY a.landlordID) AS landlord_stats ON a.landlordID = landlord_stats.landlordID
         ORDER BY landlord_stats.favorite_count DESC, landlord_stats.application_count DESC;";
     }
     
