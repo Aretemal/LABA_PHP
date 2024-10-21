@@ -6,10 +6,17 @@ require 'src/users/users.php';
 
 $error = "";
 
+
 if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     try {
         $pdo = getPDO(); 
         list($errors, $userData) = validateUserData($_POST); 
+        
+        echo "<script>console.log(" . $postData['name'] . ");</script>";
+
+        // Запись в файл на рабочий стол
+        $desktopPath = '/home/kemal/Desktop/log.txt';
+        file_put_contents($desktopPath, $postData['name'] . PHP_EOL, FILE_APPEND);
 
         if (!empty($errors)) {
             $error = implode(' ', $errors);
@@ -20,21 +27,21 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             $_SESSION['error'] = $error;
             header("Location: register.php");
         } else {
-            $userId = createUser(
-                $pdo, $userData['name'], 
-                $userData['username'], 
-                $userData['password'],
-                $userData['age'],
-                $userData['gender'], 
-                $userData['role']
-            );  
+            // $userId = createUser(
+            //     $pdo, $userData['name'], 
+            //     $userData['username'], 
+            //     $userData['password'],
+            //     $userData['age'],
+            //     $userData['gender'], 
+            //     $userData['role']
+            // );  
             
-            $_SESSION['user_id'] = $userId;
-            $_SESSION['username'] = $userData['username'];
-            $_SESSION['role'] = $userData['role'];
+            // $_SESSION['user_id'] = $userId;
+            // $_SESSION['username'] = $userData['username'];
+            // $_SESSION['role'] = $userData['role'];
 
-            header("Location: apartments.php");
-            exit();
+            // header("Location: apartments.php");
+            // exit();
         }
     } catch (PDOException $e) {
         $_SESSION['error'] = 'База данных недоступна. Пожалуйста, попробуйте позже.' . $e->getMessage();
