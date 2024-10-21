@@ -205,9 +205,15 @@ $stmt = $pdo->prepare("SELECT apartmentID FROM applications WHERE userID = ?");
 $stmt->execute([$userID]);
 $applicationIDs = $stmt->fetchAll(PDO::FETCH_COLUMN, 0);
 
+
 if ($isActive && $isClient) {
     $params = [];
     $query = "SELECT a.*, 
+       landlord_stats.favorite_count, 
+       landlord_stats.application_count
+FROM apartments a
+JOIN (
+    SELECT a.landlordID, 
                      COUNT(f.apartmentID) AS favorite_count, 
                      COUNT(app.apartmentID) AS application_count 
               FROM apartments a
@@ -226,8 +232,8 @@ if ($isActive && $isClient) {
     }
     
     if ($isActive && $isClient) {
-        $query .= " GROUP BY a.id 
-                    ORDER BY favorite_count DESC, application_count DESC, a.created_at DESC";
+        $query .= "GROUP BY a.landlordID) AS landlord_stats ON a.landlordID = landlord_stats.landlordID
+        ORDER BY landlord_stats.favorite_count DESC, landlord_stats.application_count DESC;";
     }
     
     
