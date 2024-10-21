@@ -58,7 +58,7 @@ $stmt->execute($params);
 
 $applications = $stmt->fetchAll(PDO::FETCH_ASSOC);
 
-if ($_SERVER['REQUEST_METHOD'] === 'POST') {
+if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['application_id'])) {
     // Обработка изменения статуса заявки
     if (isset($_POST['status'])) {
         $applicationID = $_POST['application_id'];
@@ -69,6 +69,20 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 
         $_SESSION['success'] = "Статус заявки успешно обновлен.";
         header('Location: manage_applications.php'); // Перенаправление после обновления
+        exit();
+    }
+}
+
+if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['delete_application_id'])) {
+    $applicationID = $_POST['delete_application_id'];
+
+    // Проверка, является ли пользователь клиентом
+    if ($isClient) {
+        $stmt = $pdo->prepare("DELETE FROM applications WHERE id = ? AND userID = ?");
+        $stmt->execute([$applicationID, $userID]);
+
+        $_SESSION['success'] = "Заявка успешно удалена.";
+        header('Location: manage_applications.php'); // Перенаправление после удаления
         exit();
     }
 }
@@ -108,6 +122,14 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                                         <option value="rejected" <?= $application['status'] === 'rejected' ? 'selected' : '' ?>>Отклонено</option>
                                     </select>
                                     <button type="submit">Обновить статус</button>
+                                </form>
+                            </td>
+                        <?php endif; ?>
+                        <?php if ($isClient): ?>
+                            <td>
+                                <form method="post" style="display:inline;">
+                                    <input type="hidden" name="delete_application_id" value="<?= $application['id'] ?>">
+                                    <button type="submit" onclick="return confirm('Вы уверены, что хотите удалить эту заявку?');">Удалить</button>
                                 </form>
                             </td>
                         <?php endif; ?>

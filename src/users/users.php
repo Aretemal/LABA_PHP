@@ -36,13 +36,13 @@
         if (filter_var($age, FILTER_VALIDATE_INT, ['options' => ['min_range' => 1, 'max_range' => 100]]) === false) {
             $errors[] = "Возраст должен быть положительным числом от 1 до 100.";
         }
-        if (strlen($name) <= 4 && strlen($name) >= 256) {
+        if (strlen($name) <= 4 || strlen($name) >= 256) {
             $errors[] = "Имя должно содержать более 4 символов и менее 256 (пробелы не считаются).";
         }
-        if (strlen($username) <= 4 && strlen($name) >= 256) {
+        if (strlen($username) <= 4 || strlen($username) >= 256) {
             $errors[] = "Логин должен содержать более 4 символов и менее 256 (пробелы не считаются).";
         }
-        if (strlen($password) <= 4 && strlen($name) >= 256) {
+        if (strlen($password) <= 4 || strlen($password) >= 256) {
             $errors[] = "Пароль должен содержать более 4 символов и менее 256 (пробелы не считаются).";
         }
     

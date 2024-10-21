@@ -306,7 +306,7 @@ $applicationIDs = $stmt->fetchAll(PDO::FETCH_COLUMN, 0);
             <th>Название</th>
             <th>Цена</th>
             <th>Описание</th>
-            <th>Местоположение</th>
+            <th>Адрес</th>
             <th>Комнаты</th>
             <th>Площадь</th>
             <th>Доступна</th>
@@ -379,7 +379,7 @@ $applicationIDs = $stmt->fetchAll(PDO::FETCH_COLUMN, 0);
                 <label for="description">Описание:</label>
                 <textarea name="description" required><?= htmlspecialchars($apartment['description']) ?></textarea>
                 
-                <label for="location">Местоположение:</label>
+                <label for="location">Адрес:</label>
                 <input type="text" name="location" value="<?= htmlspecialchars($apartment['location']) ?>" required>
                 
                 <label for="rooms">Количество комнат:</label>
@@ -408,7 +408,7 @@ $applicationIDs = $stmt->fetchAll(PDO::FETCH_COLUMN, 0);
         <label for="description">Описание:</label>
         <textarea name="description" required></textarea>
         
-        <label for="location">Местоположение:</label>
+        <label for="location">Адрес:</label>
         <input type="text" name="location" required>
         
         <label for="rooms">Количество комнат:</label>
