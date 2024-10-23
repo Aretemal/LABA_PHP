@@ -5,7 +5,7 @@ require 'func/db.php';
 require 'func/create_user.php';
 require 'func/user_validation.php'; 
 
-$dsn = 'mysql:host=localhost;dbname=php_laba3;charset=utf8';
+$dsn = 'mysql:host=localhost;dbname=php_laba4;charset=utf8';
 $username = 'root';
 $password = '';
 

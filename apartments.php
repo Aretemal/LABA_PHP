@@ -1,7 +1,7 @@
 <?php
 session_start();
 
-$dsn = 'mysql:host=localhost;dbname=php_laba3;charset=utf8';
+$dsn = 'mysql:host=localhost;dbname=php_laba4;charset=utf8';
 $username = 'root';
 $password = '';
 
@@ -30,6 +30,106 @@ if (!isset($_SESSION['user_id'] )) {
     exit();
 }
 
+function getApartments($pdo, $userID, $searchTerm = '') {
+// Этап 1: Подсчет веса по цене
+$sql = "
+WITH approved_prices AS (
+    SELECT
+        AVG(a.price) AS avg_price
+    FROM
+        applications app
+    JOIN 
+        apartments a ON app.apartmentID = a.id
+    WHERE 
+        app.userID = ? AND app.status = 'accepted'
+),
+price_weights AS (
+    SELECT 
+        a.id AS apartment_id,
+        ROUND((1 - (ABS(a.price - ap.avg_price) / ap.avg_price)) * 2, 2) AS price_weight
+    FROM 
+        apartments a
+    CROSS JOIN 
+        approved_prices ap
+    WHERE 
+        ap.avg_price > 0
+)
+SELECT 
+    a.id AS id,
+    a.name AS name,
+    a.price AS price,
+    a.description AS description,
+    a.location AS location,
+    a.rooms AS rooms,
+    a.area AS area,
+    a.available AS available,
+    COALESCE(lf.total_favorites, 0) * ss.favorite_coefficient * (ss.favorite_coefficient > 0) AS favorite_coefficient,
+    COALESCE(la.total_applications, 0) * ss.application_coefficient * (ss.application_coefficient > 0) AS application_coefficient, 
+    COALESCE(pw.price_weight, 0) * ss.price_coefficient * (ss.price_coefficient > 0) AS price_coefficient,
+    ROUND(
+        COALESCE(lf.total_favorites, 0) * ss.favorite_coefficient * (ss.favorite_coefficient > 0) + 
+        COALESCE(la.total_applications, 0) * ss.application_coefficient * (ss.application_coefficient > 0) + 
+        COALESCE(pw.price_weight, 0) * ss.price_coefficient * (ss.price_coefficient > 0), 
+    2) AS total_weight
+FROM 
+    apartments a
+LEFT JOIN 
+    (SELECT landlordID, SUM(favorite_count) AS total_favorites
+     FROM (SELECT 
+             f.apartmentID,
+             a.landlordID,
+             COUNT(*) AS favorite_count
+           FROM 
+             favorites f
+           JOIN 
+             apartments a ON f.apartmentID = a.id
+           GROUP BY 
+             f.apartmentID, a.landlordID) AS fc
+     GROUP BY landlordID) lf ON a.landlordID = lf.landlordID
+LEFT JOIN 
+    (SELECT landlordID, SUM(application_count) AS total_applications
+     FROM (SELECT
+             app.apartmentID,
+             a.landlordID,
+             COUNT(*) AS application_count
+           FROM 
+             applications app
+           JOIN 
+             apartments a ON app.apartmentID = a.id
+           WHERE 
+             app.userID = ? 
+           GROUP BY 
+             app.apartmentID, a.landlordID) AS ac
+     GROUP BY landlordID) la ON a.landlordID = la.landlordID
+LEFT JOIN 
+    price_weights pw ON a.id = pw.apartment_id
+LEFT JOIN 
+    smart_search ss ON 1 = ss.id
+WHERE 
+    1=1
+";
+
+// Добавляем условия поиска по общему термину
+if ($searchTerm) {
+    $sql .= " AND (a.name LIKE ? OR a.description LIKE ? OR a.location LIKE ?)";
+}
+
+$sql .= " ORDER BY total_weight DESC;";
+
+// Подготовка параметров
+$params = [$userID, $userID];
+
+if ($searchTerm) {
+    $params[] = "%$searchTerm%";
+    $params[] = "%$searchTerm%";
+    $params[] = "%$searchTerm%";
+}
+
+// Выполнение запроса
+$stmt = $pdo->prepare($sql); // Замените $query на $sql
+$stmt->execute($params);
+return $stmt->fetchAll(PDO::FETCH_ASSOC);
+}
 
 
 $searchTerm = '';
@@ -207,39 +307,43 @@ $applicationIDs = $stmt->fetchAll(PDO::FETCH_COLUMN, 0);
 
 
 if ($isActive && $isClient) {
-    $params = [];
-    $query = "SELECT a.*, 
-       landlord_stats.favorite_count, 
-       landlord_stats.application_count
-FROM apartments a
-JOIN (
-    SELECT a.landlordID, 
-                     COUNT(f.apartmentID) AS favorite_count, 
-                     COUNT(app.apartmentID) AS application_count 
-              FROM apartments a
-              LEFT JOIN favorites f ON a.id = f.apartmentID AND f.userID = ?
-              LEFT JOIN applications app ON a.id = app.apartmentID AND app.userID = ?
-              WHERE 1=1"; 
+    $userID = $_SESSION['user_id']; // Замените на актуальный ID пользователя
+    $searchTerm = $_POST['search'] ?? ''; // Получаем строку поиска из формы
+
+    $apartments = getApartments($pdo, $userID, $searchTerm);
+    // $params = [];
+    // $query = "SELECT a.*, 
+    //    landlord_stats.favorite_count, 
+    //    landlord_stats.application_count
+    //     FROM apartments a
+    //     JOIN (
+    //         SELECT a.landlordID, 
+    //                  COUNT(f.apartmentID) AS favorite_count, 
+    //                  COUNT(app.apartmentID) AS application_count 
+    //           FROM apartments a
+    //           LEFT JOIN favorites f ON a.id = f.apartmentID AND f.userID = ?
+    //           LEFT JOIN applications app ON a.id = app.apartmentID AND app.userID = ?
+    //           WHERE 1=1"; 
     
-    $params[] = $userID;
-    $params[] = $userID;
+    // $params[] = $userID;
+    // $params[] = $userID;
     
-    if ($searchTerm) {
-        $query .= " AND (name LIKE ? OR description LIKE ? OR location LIKE ?)";
-        $params[] = "%$searchTerm%";
-        $params[] = "%$searchTerm%";
-        $params[] = "%$searchTerm%";
-    }
+    // if ($searchTerm) {
+    //     $query .= " AND (name LIKE ? OR description LIKE ? OR location LIKE ?)";
+    //     $params[] = "%$searchTerm%";
+    //     $params[] = "%$searchTerm%";
+    //     $params[] = "%$searchTerm%";
+    // }
     
-    if ($isActive && $isClient) {
-        $query .= " GROUP BY a.landlordID) AS landlord_stats ON a.landlordID = landlord_stats.landlordID
-        ORDER BY landlord_stats.favorite_count DESC, landlord_stats.application_count DESC;";
-    }
+    // if ($isActive && $isClient) {
+    //     $query .= " GROUP BY a.landlordID) AS landlord_stats ON a.landlordID = landlord_stats.landlordID
+    //     ORDER BY landlord_stats.favorite_count DESC, landlord_stats.application_count DESC;";
+    // }
     
     
-    $stmt = $pdo->prepare($query);
-    $stmt->execute($params);
-    $apartments = $stmt->fetchAll(PDO::FETCH_ASSOC);
+    // $stmt = $pdo->prepare($query);
+    // $stmt->execute($params);
+    // $apartments = $stmt->fetchAll(PDO::FETCH_ASSOC);
 } else {
     $params = [];
     $query = "SELECT * FROM apartments WHERE 1=1";

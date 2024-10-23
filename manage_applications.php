@@ -1,7 +1,7 @@
 <?php
 session_start();
 
-$dsn = 'mysql:host=localhost;dbname=php_laba3;charset=utf8';
+$dsn = 'mysql:host=localhost;dbname=php_laba4;charset=utf8';
 $username = 'root';
 $password = '';
 
@@ -60,29 +60,41 @@ $applications = $stmt->fetchAll(PDO::FETCH_ASSOC);
 
 if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['application_id'])) {
     // Обработка изменения статуса заявки
-    if (isset($_POST['status'])) {
-        $applicationID = $_POST['application_id'];
-        $status = $_POST['status'];
+    try {
+        if (isset($_POST['status'])) {
+            $applicationID = $_POST['application_id'];
+            $status = $_POST['status'];
 
-        $stmt = $pdo->prepare("UPDATE applications SET status = ? WHERE id = ?");
-        $stmt->execute([$status, $applicationID]);
+            $stmt = $pdo->prepare("UPDATE applications SET status = ? WHERE id = ?");
+            $stmt->execute([$status, $applicationID]);
 
-        $_SESSION['success'] = "Статус заявки успешно обновлен.";
-        header('Location: manage_applications.php'); // Перенаправление после обновления
+            $_SESSION['success'] = "Статус заявки успешно обновлен.";
+            header('Location: manage_applications.php'); // Перенаправление после обновления
+            exit();
+        }
+    } catch (PDOException $e) {
+        $_SESSION['db_error'] = 'Ошибка при обновлении коэффициента избранного: ' . htmlspecialchars($e->getMessage());
+        // header("Location: logout.php");
         exit();
     }
 }
 
 if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['delete_application_id'])) {
-    $applicationID = $_POST['delete_application_id'];
+    try {
+        $applicationID = $_POST['delete_application_id'];
 
-    // Проверка, является ли пользователь клиентом
-    if ($isClient) {
-        $stmt = $pdo->prepare("DELETE FROM applications WHERE id = ? AND userID = ?");
-        $stmt->execute([$applicationID, $userID]);
+        // Проверка, является ли пользователь клиентом
+        if ($isClient) {
+            $stmt = $pdo->prepare("DELETE FROM applications WHERE id = ? AND userID = ?");
+            $stmt->execute([$applicationID, $userID]);
 
-        $_SESSION['success'] = "Заявка успешно удалена.";
-        header('Location: manage_applications.php'); // Перенаправление после удаления
+            $_SESSION['success'] = "Заявка успешно удалена.";
+            header('Location: manage_applications.php'); // Перенаправление после удаления
+            exit();
+        }
+    } catch (PDOException $e) {
+        $_SESSION['db_error'] = 'Ошибка при обновлении коэффициента избранного: ' . htmlspecialchars($e->getMessage());
+        header("Location: logout.php");
         exit();
     }
 }
@@ -118,7 +130,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['delete_application_id
                                     <input type="hidden" name="application_id" value="<?= $application['id'] ?>">
                                     <select name="status">
                                         <option value="in progress" <?= $application['status'] === 'in progress' ? 'selected' : '' ?>>Ожидает</option>
-                                        <option value="agreed" <?= $application['status'] === 'agreed' ? 'selected' : '' ?>>Согласовано</option>
+                                        <option value="accepted" <?= $application['status'] === 'accepted' ? 'selected' : '' ?>>Согласовано</option>
                                         <option value="rejected" <?= $application['status'] === 'rejected' ? 'selected' : '' ?>>Отклонено</option>
                                     </select>
                                     <button type="submit">Обновить статус</button>
